@@ -3,9 +3,13 @@ from __future__ import annotations
 import pytest
 import mongomock
 
+from scripts.generate_proto import main as generate_proto
 from auth_service.config import Settings
 from auth_service.infrastructure.database import MongoStore
 from auth_service.infrastructure.repositories import OtpRepository, RefreshTokenRepository, UserRepository
+
+
+generate_proto()
 
 
 @pytest.fixture()

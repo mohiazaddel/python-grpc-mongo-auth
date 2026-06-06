@@ -1,55 +1,123 @@
 # Python gRPC Mongo Auth
 
-Authentication backend with Python gRPC, MongoDB, RabbitMQ-backed SMS dispatch, Kavenegar delivery, OTP login, JWT access tokens, refresh-token rotation, and role-based access control.
+OTP authentication backend built with Python, gRPC, MongoDB, RabbitMQ, and Kavenegar.
 
-The code is split into explicit layers:
+The service supports phone-based OTP login, durable SMS dispatch, JWT access tokens, refresh-token rotation, and role-based access control for `admin` and `user` roles.
 
-- `auth_service.infrastructure`: MongoDB repositories plus RabbitMQ and Kavenegar adapters
-- `auth_service.domain`: OTP/token/security domain logic
-- `auth_service.application`: auth use cases
-- `auth_service.interfaces.grpc`: transport/API layer
-- `auth_service.container`: `injector.Module` provider wiring
-- `injection.py`: singleton `Injection().get(...)` resolver
-- `manage.py`: composition root and runtime commands
+## Architecture
 
-## Services
+The code follows a small DDD-style layered structure:
 
-- `auth`: gRPC API on `localhost:50051`
-- `sms-worker`: consumes RabbitMQ OTP SMS jobs and sends them through Kavenegar
-- `mongo`: user, OTP, and refresh-token persistence
-- `rabbitmq`: durable SMS queue, management UI on `localhost:15672`
+- `auth_service.domain`: OTP, token, and security rules
+- `auth_service.application`: authentication use cases
+- `auth_service.infrastructure`: MongoDB, RabbitMQ, and Kavenegar adapters
+- `auth_service.interfaces.grpc`: gRPC transport layer
+- `auth_service.container`: dependency-injection wiring
+- `manage.py`: runtime command entrypoint
 
-## Run
+## Requirements Covered
+
+- Python gRPC API
+- MongoDB persistence
+- RabbitMQ SMS queue with durable messages
+- Kavenegar SMS delivery adapter
+- Secure OTP storage using HMAC hashing and one-time use
+- OTP expiry, resend cooldown, and attempt limit
+- JWT access token plus refresh-token rotation
+- `admin`, authenticated-user, and public gRPC methods
+- Docker Compose for MongoDB, RabbitMQ, API, and SMS worker
+- Unit tests for domain, repositories, gRPC access control, and messaging adapters
+
+## Configuration
+
+Create a `.env` file from the example:
 
 ```bash
 cp .env.example .env
+```
+
+Important variables:
+
+- `JWT_SECRET`: long random secret for access tokens
+- `OTP_PEPPER`: different long random secret for OTP HMAC hashing
+- `KAVENEGAR_API_KEY`: Kavenegar API key used by the SMS worker
+- `KAVENEGAR_SENDER`: sender line configured in Kavenegar
+- `BOOTSTRAP_ADMIN_PHONE`: phone number that becomes `admin` after OTP verification
+
+Do not use the default secrets outside local development.
+
+## Run With Docker
+
+```bash
 docker compose up --build
 ```
 
-Set strong `JWT_SECRET` and `OTP_PEPPER` values before using this outside local testing.
-Use `BOOTSTRAP_ADMIN_PHONE` to make one OTP-verified phone an admin for access-control testing.
+Services:
 
-Local commands:
+- `auth`: gRPC API at `localhost:50051`
+- `sms-worker`: consumes RabbitMQ messages and sends SMS through Kavenegar
+- `mongo`: MongoDB storage
+- `rabbitmq`: RabbitMQ broker and management UI at `localhost:15672`
+
+## Local Development
+
+Install dependencies:
+
+```bash
+python -m pip install -r requirements-dev.txt
+```
+
+Generate gRPC Python files:
+
+```bash
+python scripts/generate_proto.py
+```
+
+The test suite also generates these files automatically during collection.
+
+Create MongoDB indexes:
 
 ```bash
 python manage.py init-db
+```
+
+Run the API:
+
+```bash
 python manage.py serve
+```
+
+Run the SMS worker:
+
+```bash
 python manage.py sms-worker
 ```
 
-## API
+## gRPC API
 
-- `RequestOtp(phone)`: creates a short-lived OTP and queues SMS delivery
-- `VerifyOtp(phone, otp)`: validates OTP, creates user if needed, returns access and refresh tokens
-- `RefreshToken(refresh_token)`: rotates refresh token and returns a new token pair
-- `PublicEndpoint()`: public test method
+- `RequestOtp(phone)`: normalizes phone, creates a 6-digit OTP, stores only the OTP hash, and queues SMS
+- `VerifyOtp(phone, otp)`: validates OTP, creates or loads the user, and returns an access/refresh token pair
+- `RefreshToken(refresh_token)`: revokes the used refresh token and returns a new pair
+- `PublicEndpoint()`: no authentication required
 - `UserEndpoint()`: requires `authorization: Bearer <access_token>`
-- `AdminEndpoint()`: requires an authenticated user with role `admin`
+- `AdminEndpoint()`: requires `authorization: Bearer <access_token>` with role `admin`
 
 ## Tests
 
 ```bash
-python -m pip install -r requirements-dev.txt
-python scripts/generate_proto.py
-pytest
+python -m pytest -q
 ```
+
+To regenerate protobuf files manually, run:
+
+```bash
+python scripts/generate_proto.py
+```
+
+## Security Notes
+
+- OTP values are generated with `secrets`, never stored in plaintext, and are checked with constant-time comparison.
+- OTPs expire, can be used only once, and have a maximum attempt count.
+- Refresh tokens are random, stored as hashes, and rotated on every refresh.
+- Access control is enforced in the gRPC interface through bearer-token metadata.
+- RabbitMQ and Kavenegar adapter failures are wrapped as expected messaging errors for clearer handling.

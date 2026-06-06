@@ -62,6 +62,19 @@ def test_refresh_token_rotation(settings, users, refresh_tokens) -> None:
         tokens.refresh(first["refresh_token"])
 
 
+def test_refresh_token_reuse_revokes_active_user_tokens(settings, users, refresh_tokens) -> None:
+    user = users.get_or_create_by_phone("+989123456789", "user")
+    tokens = TokenService(users, refresh_tokens, settings)
+
+    first = tokens.issue_pair(user)
+    second = tokens.refresh(first["refresh_token"])
+
+    with pytest.raises(InvalidCredentials):
+        tokens.refresh(first["refresh_token"])
+    with pytest.raises(InvalidCredentials):
+        tokens.refresh(second["refresh_token"])
+
+
 def test_admin_role_required(settings, users, refresh_tokens) -> None:
     user = users.get_or_create_by_phone("+989123456789", "user")
     tokens = TokenService(users, refresh_tokens, settings)

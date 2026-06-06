@@ -20,4 +20,4 @@ class MongoStore:
         self.refresh_tokens.create_index("token_hash", unique=True)
         self.refresh_tokens.create_index("expires_at", expireAfterSeconds=0)
         self.refresh_tokens.create_index([("user_id", ASCENDING), ("revoked_at", ASCENDING)])
-
+        self.refresh_tokens.create_index([("family_id", ASCENDING), ("revoked_at", ASCENDING)])

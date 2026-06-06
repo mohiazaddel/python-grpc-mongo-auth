@@ -30,12 +30,17 @@ class OtpRepository(Protocol):
 
 
 class RefreshTokenRepository(Protocol):
-    def create(self, user_id: Any, token_hash: str, ttl_seconds: int) -> None:
+    def create(self, user_id: Any, token_hash: str, ttl_seconds: int, family_id: str) -> None:
+        ...
+
+    def find_by_hash(self, token_hash: str) -> dict[str, Any] | None:
         ...
 
     def find_active(self, token_hash: str, now: datetime) -> dict[str, Any] | None:
         ...
 
-    def revoke(self, token_id: Any, revoked_at: datetime) -> None:
+    def revoke_active_for_user(self, user_id: Any, revoked_at: datetime) -> None:
         ...
 
+    def revoke(self, token_id: Any, revoked_at: datetime) -> None:
+        ...

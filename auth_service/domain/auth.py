@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 import secrets
+import uuid
 from datetime import timedelta
 from typing import Any
 
@@ -58,13 +59,15 @@ class TokenService:
         self.refresh_tokens = refresh_tokens
         self.settings = settings
 
-    def issue_pair(self, user: dict[str, Any]) -> dict[str, Any]:
+    def issue_pair(self, user: dict[str, Any], refresh_family_id: str | None = None) -> dict[str, Any]:
         now = utcnow()
         access_expires = now + timedelta(seconds=self.settings.access_token_ttl_seconds)
+        access_jti = uuid.uuid4().hex
         access_payload = {
             "sub": str(user["_id"]),
             "phone": user["phone"],
             "role": user["role"],
+            "jti": access_jti,
             "iat": int(now.timestamp()),
             "exp": int(access_expires.timestamp()),
             "typ": "access",
@@ -75,6 +78,7 @@ class TokenService:
             user["_id"],
             hash_secret(refresh_token, self.settings.jwt_secret),
             self.settings.refresh_token_ttl_seconds,
+            refresh_family_id or uuid.uuid4().hex,
         )
         return {
             "access_token": access_token,
@@ -88,12 +92,15 @@ class TokenService:
         token_hash = hash_secret(refresh_token or "", self.settings.jwt_secret)
         stored = self.refresh_tokens.find_active(token_hash, now)
         if not stored:
+            reused = self.refresh_tokens.find_by_hash(token_hash)
+            if reused:
+                self.refresh_tokens.revoke_active_for_user(reused["user_id"], now)
             raise InvalidCredentials("invalid refresh token")
         user = self.users.get_by_id(stored["user_id"])
         if not user:
             raise InvalidCredentials("user not found")
         self.refresh_tokens.revoke(stored["_id"], now)
-        return self.issue_pair(user)
+        return self.issue_pair(user, refresh_family_id=stored["family_id"])
 
     def verify_access(self, authorization: str | None, required_role: str | None = None) -> dict[str, Any]:
         if not authorization or not authorization.lower().startswith("bearer "):

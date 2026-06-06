@@ -18,7 +18,9 @@ def test_publish_declares_durable_queue_and_persistent_message(settings) -> None
         RabbitSmsPublisher(settings).publish(SmsMessage(phone="+989123456789", text="code 123456"))
 
     channel.queue_declare.assert_called_once_with(queue=settings.sms_queue, durable=True)
+    channel.confirm_delivery.assert_called_once()
     assert channel.basic_publish.call_args.kwargs["routing_key"] == settings.sms_queue
+    assert channel.basic_publish.call_args.kwargs["mandatory"] is True
     assert channel.basic_publish.call_args.kwargs["properties"].delivery_mode == 2
     connection.close.assert_called_once()
 

@@ -70,21 +70,31 @@ class RefreshTokenRepository:
     def __init__(self, store: MongoStore) -> None:
         self.collection = store.refresh_tokens
 
-    def create(self, user_id: Any, token_hash: str, ttl_seconds: int) -> None:
+    def create(self, user_id: Any, token_hash: str, ttl_seconds: int, family_id: str) -> None:
         now = utcnow()
         self.collection.insert_one(
             {
                 "user_id": user_id,
                 "token_hash": token_hash,
+                "family_id": family_id,
                 "created_at": now,
                 "expires_at": now + timedelta(seconds=ttl_seconds),
                 "revoked_at": None,
             }
         )
 
+    def find_by_hash(self, token_hash: str) -> dict[str, Any] | None:
+        return self.collection.find_one({"token_hash": token_hash})
+
     def find_active(self, token_hash: str, now: datetime) -> dict[str, Any] | None:
         return self.collection.find_one(
             {"token_hash": token_hash, "revoked_at": None, "expires_at": {"$gt": now}}
+        )
+
+    def revoke_active_for_user(self, user_id: Any, revoked_at: datetime) -> None:
+        self.collection.update_many(
+            {"user_id": user_id, "revoked_at": None},
+            {"$set": {"revoked_at": revoked_at}},
         )
 
     def revoke(self, token_id: Any, revoked_at: datetime) -> None:

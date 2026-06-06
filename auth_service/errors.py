@@ -17,3 +17,6 @@ class RateLimited(AuthError):
 class MessagingError(AuthError):
     pass
 
+
+class ConfigurationError(AuthError):
+    pass

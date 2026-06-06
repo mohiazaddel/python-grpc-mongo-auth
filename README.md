@@ -43,8 +43,9 @@ Important variables:
 - `KAVENEGAR_API_KEY`: Kavenegar API key used by the SMS worker
 - `KAVENEGAR_SENDER`: sender line configured in Kavenegar
 - `BOOTSTRAP_ADMIN_PHONE`: phone number that becomes `admin` after OTP verification
+- `APP_ENV`: set to `production` to enforce strong `JWT_SECRET` and `OTP_PEPPER` values at startup
 
-Do not use the default secrets outside local development.
+The application validates numeric settings, allowed roles, and production secret strength during startup. Do not use the default secrets outside local development.
 
 ## Run With Docker
 
@@ -58,6 +59,8 @@ Services:
 - `sms-worker`: consumes RabbitMQ messages and sends SMS through Kavenegar
 - `mongo`: MongoDB storage
 - `rabbitmq`: RabbitMQ broker and management UI at `localhost:15672`
+
+The Compose stack includes MongoDB/RabbitMQ health checks, restart policies, and a non-root application container user.
 
 ## Local Development
 
@@ -118,6 +121,7 @@ python scripts/generate_proto.py
 
 - OTP values are generated with `secrets`, never stored in plaintext, and are checked with constant-time comparison.
 - OTPs expire, can be used only once, and have a maximum attempt count.
-- Refresh tokens are random, stored as hashes, and rotated on every refresh.
+- Refresh tokens are random, stored as hashes, rotated on every refresh, and protected with reuse detection.
 - Access control is enforced in the gRPC interface through bearer-token metadata.
+- RabbitMQ publishes use durable messages, publisher confirms, and mandatory routing.
 - RabbitMQ and Kavenegar adapter failures are wrapped as expected messaging errors for clearer handling.

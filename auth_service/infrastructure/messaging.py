@@ -4,7 +4,7 @@ import json
 from typing import Callable
 
 import pika
-from pika.exceptions import AMQPError
+from pika.exceptions import AMQPError, UnroutableError
 
 from auth_service.config import Settings
 from auth_service.errors import MessagingError
@@ -22,15 +22,17 @@ class RabbitSmsPublisher:
             try:
                 channel = connection.channel()
                 channel.queue_declare(queue=self.settings.sms_queue, durable=True)
+                channel.confirm_delivery()
                 channel.basic_publish(
                     exchange="",
                     routing_key=self.settings.sms_queue,
                     body=json.dumps(message.__dict__).encode(),
+                    mandatory=True,
                     properties=pika.BasicProperties(delivery_mode=2, content_type="application/json"),
                 )
             finally:
                 connection.close()
-        except AMQPError as exc:
+        except (AMQPError, UnroutableError) as exc:
             raise MessagingError("failed to publish sms message") from exc
 
 

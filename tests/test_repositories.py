@@ -33,9 +33,20 @@ def test_user_repository_returns_existing_user_after_duplicate_insert(users, mon
 
 
 def test_refresh_token_repository_create_find_and_revoke(refresh_tokens) -> None:
-    refresh_tokens.create("user-id", "token-hash", ttl_seconds=60)
+    refresh_tokens.create("user-id", "token-hash", ttl_seconds=60, family_id="family-id")
     stored = refresh_tokens.find_active("token-hash", utcnow())
 
     assert stored is not None
+    assert stored["family_id"] == "family-id"
     refresh_tokens.revoke(stored["_id"], utcnow())
     assert refresh_tokens.find_active("token-hash", utcnow()) is None
+
+
+def test_refresh_token_repository_revokes_active_tokens_for_user(refresh_tokens) -> None:
+    refresh_tokens.create("user-id", "token-hash-1", ttl_seconds=60, family_id="family-id")
+    refresh_tokens.create("user-id", "token-hash-2", ttl_seconds=60, family_id="family-id")
+
+    refresh_tokens.revoke_active_for_user("user-id", utcnow())
+
+    assert refresh_tokens.find_active("token-hash-1", utcnow()) is None
+    assert refresh_tokens.find_active("token-hash-2", utcnow()) is None

@@ -8,6 +8,7 @@ from proto import auth_pb2_grpc
 
 from auth_service.config import Settings
 from auth_service.infrastructure.database import MongoStore
+from auth_service.interfaces.grpc.security import SecurityMetadataInterceptor
 from auth_service.interfaces.grpc.service import AuthGrpcService
 from injection import Injection
 
@@ -15,7 +16,10 @@ from injection import Injection
 def create_server(injection: Injection) -> grpc.Server:
     settings = injection.get(Settings)
     injection.get(MongoStore).ensure_indexes()
-    server = grpc.server(futures.ThreadPoolExecutor(max_workers=16))
+    server = grpc.server(
+        futures.ThreadPoolExecutor(max_workers=16),
+        interceptors=(SecurityMetadataInterceptor(),),
+    )
     auth_pb2_grpc.add_AuthServiceServicer_to_server(injection.get(AuthGrpcService), server)
     server.add_insecure_port(f"{settings.grpc_host}:{settings.grpc_port}")
     return server

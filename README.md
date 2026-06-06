@@ -123,5 +123,6 @@ python scripts/generate_proto.py
 - OTPs expire, can be used only once, and have a maximum attempt count.
 - Refresh tokens are random, stored as hashes, rotated on every refresh, and protected with reuse detection.
 - Access control is enforced in the gRPC interface through bearer-token metadata.
+- A gRPC server interceptor emits defensive response metadata such as CSP, frame denial, referrer policy, permissions policy, and content-type sniffing protection.
 - RabbitMQ publishes use durable messages, publisher confirms, and mandatory routing.
 - RabbitMQ and Kavenegar adapter failures are wrapped as expected messaging errors for clearer handling.

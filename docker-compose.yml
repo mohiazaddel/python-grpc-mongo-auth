@@ -31,7 +31,7 @@ services:
 
   sms-worker:
     build: .
-    command: ["python", "-m", "auth_service.sms_worker"]
+    command: ["python", "manage.py", "sms-worker"]
     depends_on:
       - rabbitmq
     environment:

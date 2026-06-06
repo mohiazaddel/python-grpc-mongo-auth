@@ -3,7 +3,8 @@ from __future__ import annotations
 import pytest
 
 from auth_service.errors import InvalidCredentials, RateLimited
-from auth_service.security import OtpService, TokenService, hash_secret, normalize_phone
+from auth_service.domain.auth import OtpService, TokenService
+from auth_service.domain.security import hash_secret, normalize_phone
 
 
 def test_phone_normalization_accepts_e164_like_numbers() -> None:

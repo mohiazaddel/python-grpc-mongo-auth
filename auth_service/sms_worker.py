@@ -1,10 +1,12 @@
 from __future__ import annotations
 
-from .container import Container
+from injection import Injection
+
+from .infrastructure.messaging import RabbitSmsConsumer
 
 
 def main() -> None:
-    Container().sms_consumer().start()
+    Injection().get(RabbitSmsConsumer).start()
 
 
 if __name__ == "__main__":

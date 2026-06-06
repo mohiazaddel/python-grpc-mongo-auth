@@ -4,8 +4,8 @@ import pytest
 import mongomock
 
 from auth_service.config import Settings
-from auth_service.database import MongoStore
-from auth_service.repositories import OtpRepository, RefreshTokenRepository, UserRepository
+from auth_service.infrastructure.database import MongoStore
+from auth_service.infrastructure.repositories import OtpRepository, RefreshTokenRepository, UserRepository
 
 
 @pytest.fixture()

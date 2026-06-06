@@ -5,4 +5,4 @@ pika==1.3.2
 PyJWT==2.8.0
 requests==2.32.3
 python-dotenv==1.0.1
-dependency-injector==4.41.0
+injector==0.22.0

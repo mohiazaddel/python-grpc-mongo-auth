@@ -1,48 +1,76 @@
 from __future__ import annotations
 
-from dependency_injector import containers, providers
+from injector import Module, provider, singleton
 
-from .config import load_settings
-from .database import MongoStore
-from .grpc_service import AuthService
-from .kavenegar import KavenegarClient
-from .messaging import RabbitSmsConsumer, RabbitSmsPublisher
-from .repositories import OtpRepository, RefreshTokenRepository, UserRepository
-from .security import OtpService, TokenService
-from .services import AuthApplicationService
+from .application.auth import AuthApplicationService
+from .config import Settings, load_settings
+from .domain.auth import OtpService, TokenService
+from .infrastructure.database import MongoStore
+from .infrastructure.kavenegar import KavenegarClient
+from .infrastructure.messaging import RabbitSmsConsumer, RabbitSmsPublisher
+from .infrastructure.repositories import OtpRepository, RefreshTokenRepository, UserRepository
+from .interfaces.grpc.service import AuthGrpcService
 
 
-class Container(containers.DeclarativeContainer):
-    settings = providers.Singleton(load_settings)
+class AppModule(Module):
+    @singleton
+    @provider
+    def provide_settings(self) -> Settings:
+        return load_settings()
 
-    store = providers.Singleton(MongoStore, settings=settings)
+    @singleton
+    @provider
+    def provide_store(self, settings: Settings) -> MongoStore:
+        return MongoStore(settings)
 
-    users = providers.Factory(UserRepository, store=store)
-    otps = providers.Factory(OtpRepository, store=store)
-    refresh_tokens = providers.Factory(RefreshTokenRepository, store=store)
+    @provider
+    def provide_users(self, store: MongoStore) -> UserRepository:
+        return UserRepository(store)
 
-    otp_service = providers.Factory(OtpService, otps=otps, settings=settings)
-    token_service = providers.Factory(
-        TokenService,
-        users=users,
-        refresh_tokens=refresh_tokens,
-        settings=settings,
-    )
-    sms_publisher = providers.Factory(RabbitSmsPublisher, settings=settings)
-    auth_app = providers.Factory(
-        AuthApplicationService,
-        settings=settings,
-        users=users,
-        otp_service=otp_service,
-        token_service=token_service,
-        sms_publisher=sms_publisher,
-    )
+    @provider
+    def provide_otps(self, store: MongoStore) -> OtpRepository:
+        return OtpRepository(store)
 
-    grpc_auth_service = providers.Factory(AuthService, auth_service=auth_app)
+    @provider
+    def provide_refresh_tokens(self, store: MongoStore) -> RefreshTokenRepository:
+        return RefreshTokenRepository(store)
 
-    kavenegar_client = providers.Factory(KavenegarClient, settings=settings)
-    sms_consumer = providers.Factory(
-        RabbitSmsConsumer,
-        settings=settings,
-        handler=kavenegar_client.provided.send_sms,
-    )
+    @provider
+    def provide_otp_service(self, otps: OtpRepository, settings: Settings) -> OtpService:
+        return OtpService(otps, settings)
+
+    @provider
+    def provide_token_service(
+        self,
+        users: UserRepository,
+        refresh_tokens: RefreshTokenRepository,
+        settings: Settings,
+    ) -> TokenService:
+        return TokenService(users, refresh_tokens, settings)
+
+    @provider
+    def provide_sms_publisher(self, settings: Settings) -> RabbitSmsPublisher:
+        return RabbitSmsPublisher(settings)
+
+    @provider
+    def provide_auth_application_service(
+        self,
+        settings: Settings,
+        users: UserRepository,
+        otp_service: OtpService,
+        token_service: TokenService,
+        sms_publisher: RabbitSmsPublisher,
+    ) -> AuthApplicationService:
+        return AuthApplicationService(settings, users, otp_service, token_service, sms_publisher)
+
+    @provider
+    def provide_grpc_auth_service(self, auth_service: AuthApplicationService) -> AuthGrpcService:
+        return AuthGrpcService(auth_service)
+
+    @provider
+    def provide_kavenegar_client(self, settings: Settings) -> KavenegarClient:
+        return KavenegarClient(settings)
+
+    @provider
+    def provide_sms_consumer(self, settings: Settings, kavenegar_client: KavenegarClient) -> RabbitSmsConsumer:
+        return RabbitSmsConsumer(settings, kavenegar_client.send_sms)

@@ -6,7 +6,7 @@ import pika
 import pytest
 
 from auth_service.errors import MessagingError
-from auth_service.messaging import RabbitSmsPublisher, SmsMessage
+from auth_service.infrastructure.messaging import RabbitSmsPublisher, SmsMessage
 
 
 def test_publish_declares_durable_queue_and_persistent_message(settings) -> None:
@@ -14,7 +14,7 @@ def test_publish_declares_durable_queue_and_persistent_message(settings) -> None
     connection = Mock()
     connection.channel.return_value = channel
 
-    with patch("auth_service.messaging.pika.BlockingConnection", return_value=connection):
+    with patch("auth_service.infrastructure.messaging.pika.BlockingConnection", return_value=connection):
         RabbitSmsPublisher(settings).publish(SmsMessage(phone="+989123456789", text="code 123456"))
 
     channel.queue_declare.assert_called_once_with(queue=settings.sms_queue, durable=True)
@@ -24,7 +24,6 @@ def test_publish_declares_durable_queue_and_persistent_message(settings) -> None
 
 
 def test_publish_wraps_rabbitmq_errors(settings) -> None:
-    with patch("auth_service.messaging.pika.BlockingConnection", side_effect=pika.exceptions.AMQPConnectionError()):
+    with patch("auth_service.infrastructure.messaging.pika.BlockingConnection", side_effect=pika.exceptions.AMQPConnectionError()):
         with pytest.raises(MessagingError):
             RabbitSmsPublisher(settings).publish(SmsMessage(phone="+989123456789", text="code 123456"))
-

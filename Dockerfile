@@ -13,5 +13,4 @@ RUN python scripts/generate_proto.py
 
 EXPOSE 50051
 
-CMD ["python", "-m", "auth_service.server"]
-
+CMD ["python", "manage.py", "serve"]

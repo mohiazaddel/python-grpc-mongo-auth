@@ -1,0 +1,2 @@
+"""gRPC authentication service package."""
+

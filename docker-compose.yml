@@ -1,0 +1,44 @@
+services:
+  mongo:
+    image: mongo:7
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+  auth:
+    build: .
+    depends_on:
+      - mongo
+      - rabbitmq
+    environment:
+      MONGO_URI: mongodb://mongo:27017
+      MONGO_DB: auth_service
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/%2F
+      JWT_SECRET: ${JWT_SECRET:-change-this-jwt-secret}
+      OTP_PEPPER: ${OTP_PEPPER:-change-this-otp-pepper}
+      KAVENEGAR_API_KEY: ${KAVENEGAR_API_KEY:-}
+      KAVENEGAR_SENDER: ${KAVENEGAR_SENDER:-10008663}
+      BOOTSTRAP_ADMIN_PHONE: ${BOOTSTRAP_ADMIN_PHONE:-}
+    ports:
+      - "50051:50051"
+
+  sms-worker:
+    build: .
+    command: ["python", "-m", "auth_service.sms_worker"]
+    depends_on:
+      - rabbitmq
+    environment:
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/%2F
+      SMS_QUEUE: sms.otp
+      KAVENEGAR_API_KEY: ${KAVENEGAR_API_KEY:-}
+      KAVENEGAR_SENDER: ${KAVENEGAR_SENDER:-10008663}
+
+volumes:
+  mongo-data:

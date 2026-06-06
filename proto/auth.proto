@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package auth;
+
+service AuthService {
+  rpc RequestOtp (RequestOtpRequest) returns (RequestOtpResponse);
+  rpc VerifyOtp (VerifyOtpRequest) returns (TokenResponse);
+  rpc RefreshToken (RefreshTokenRequest) returns (TokenResponse);
+  rpc PublicEndpoint (Empty) returns (AccessResponse);
+  rpc UserEndpoint (Empty) returns (AccessResponse);
+  rpc AdminEndpoint (Empty) returns (AccessResponse);
+}
+
+message Empty {}
+
+message RequestOtpRequest {
+  string phone = 1;
+}
+
+message RequestOtpResponse {
+  bool accepted = 1;
+  string message = 2;
+}
+
+message VerifyOtpRequest {
+  string phone = 1;
+  string otp = 2;
+}
+
+message RefreshTokenRequest {
+  string refresh_token = 1;
+}
+
+message TokenResponse {
+  string access_token = 1;
+  string refresh_token = 2;
+  string token_type = 3;
+  int64 expires_in = 4;
+  string role = 5;
+}
+
+message AccessResponse {
+  string message = 1;
+}
+
